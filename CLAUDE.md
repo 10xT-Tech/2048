@@ -78,3 +78,15 @@ xcodebuild test -scheme Game2048UITests -destination '…'          # XCUI smoke
   on one board — 2048 is on it, so the green frame shows), `-demoOver` (no moves left; `-demoRecord` = as a new record); `-interfaceLanguage ru|en`; `-themePreference light|dark`.
 - App icon: `swift tools/make_icon.swift` (thin white glyph on black, like Gist It's). The Orca project
   icon is the same picture, exported to `docs/orca-icon.png` (Orca keeps repo icons in its own store).
+
+## TestFlight upload
+App Store Connect record: **10xMerge**, bundle id `tech.10xt.game2048` (created 2026-11-13; build 1.0.0 (1) uploaded).
+Uses the Apple ID signed in to Xcode (no API key on this machine).
+```
+xcodegen generate
+xcodebuild archive -scheme Game2048 -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath ~/Library/Developer/Xcode/Archives/$(date +%Y-%m-%d)/10xMerge-<version>-<build>.xcarchive -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath <that .xcarchive> -exportOptionsPlist tools/ExportOptions-TestFlight.plist \
+  -exportPath <scratch dir outside Dropbox> -allowProvisioningUpdates
+```
+`CURRENT_PROJECT_VERSION` in project.yml is the NEXT build number to upload — bump it after every upload.
