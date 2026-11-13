@@ -2,8 +2,7 @@
 //  GameSession.swift
 //  2048 — Domain
 //
-//  One game in progress plus what's around it: the undo history, whether the "You made 2048" moment
-//  was already shown, when the game started, and the statistics bookkeeping. Codable — the whole
+//  One game in progress plus what's around it: the undo history, when the game started, and the statistics bookkeeping. Codable — the whole
 //  session is what's saved, so a relaunch resumes the game with its undo steps.
 //  Fields added after 1.0 are optional so sessions saved by an older build still decode.
 //
@@ -17,8 +16,6 @@ public struct GameSession: Hashable, Codable, Sendable {
     public private(set) var state: GameState
     /// Previous states, oldest first; at most `undoLimit`.
     public private(set) var history: [GameState]
-    /// The player chose "Keep going" after reaching 2048 — don't show the win again this game.
-    public private(set) var keepPlaying: Bool
     /// Statistics flags that must NOT roll back with Undo (a win or a start is counted once a game).
     public private(set) var countedStart: Bool
     public private(set) var countedWin: Bool
@@ -26,18 +23,18 @@ public struct GameSession: Hashable, Codable, Sendable {
     public private(set) var startedAt: Date?
     /// The latest move's time — a finished game ends here.
     public private(set) var lastMoveAt: Date?
+    /// The best score before this game began — beating it makes this game a new record.
+    public private(set) var bestAtStart: Int?
 
-    public init(state: GameState) {
+    public init(state: GameState, bestAtStart: Int? = nil) {
         self.state = state
+        self.bestAtStart = bestAtStart
         self.history = []
-        self.keepPlaying = false
         self.countedStart = false
         self.countedWin = false
     }
 
     public var canUndo: Bool { !history.isEmpty }
-    /// Show the win overlay: 2048 reached and the player hasn't chosen to keep going.
-    public var showsWin: Bool { state.hasWon && !keepPlaying }
     public var isOver: Bool { state.isOver }
 
     /// Plays a move and records it in `stats`. Nil if nothing moved.
@@ -73,8 +70,6 @@ public struct GameSession: Hashable, Codable, Sendable {
         return true
     }
 
-    public mutating func continueAfterWin() { keepPlaying = true }
-
     /// From the first move to the last one.
     public var duration: TimeInterval {
         guard let startedAt, let lastMoveAt else { return 0 }
@@ -95,7 +90,7 @@ public struct GameSession: Hashable, Codable, Sendable {
                                   using rng: inout some RandomNumberGenerator,
                                   at now: Date = Date()) -> (record: GameRecord, rank: Int?)? {
         let finished = record(endedAt: now).map { ($0, stats.add($0)) }
-        self = GameSession(state: GameEngine.newGame(size: size, using: &rng))
+        self = GameSession(state: GameEngine.newGame(size: size, using: &rng), bestAtStart: stats.bestScore)
         return finished
     }
 }

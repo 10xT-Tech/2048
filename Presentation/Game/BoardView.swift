@@ -18,6 +18,8 @@ struct BoardView: View {
     let size: Int
     let tiles: [Tile]
     var entrance: (Tile) -> TileEntrance = { _ in .appear }
+    /// A thin frame around the board (the game has ended); nil = none.
+    var frameColor: Color? = nil
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -43,6 +45,14 @@ struct BoardView: View {
             }
             .frame(width: side, height: side, alignment: .topLeading)
             .glassPanel(cornerRadius: Tokens.Radius.card)
+            .overlay {
+                if let frameColor {
+                    RoundedRectangle(cornerRadius: Tokens.Radius.card, style: .continuous)
+                        .strokeBorder(frameColor, lineWidth: GameTokens.endFrameWidth)
+                        .transition(.opacity)
+                }
+            }
+            .animation(Tokens.Motion.standard, value: frameColor)
             .shadow(Tokens.Shadow.cardLight, Tokens.Shadow.cardDark, scheme: scheme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

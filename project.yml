@@ -1,4 +1,4 @@
-# 2048 — xcodegen project definition (source of truth for the Xcode project).
+# 10xMerge — xcodegen project definition (source of truth for the Xcode project).
 # Regenerate the .xcodeproj with:  xcodegen generate
 # The generated Game2048.xcodeproj is gitignored; project.yml is committed instead.
 #
@@ -79,7 +79,7 @@ targets:
       - target: Presentation
     settings:
       base:
-        PRODUCT_NAME: "2048"
+        PRODUCT_NAME: "10xMerge"
         PRODUCT_MODULE_NAME: Game2048
         PRODUCT_BUNDLE_IDENTIFIER: tech.10xt.game2048
         INFOPLIST_FILE: App/Info.plist

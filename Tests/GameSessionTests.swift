@@ -53,15 +53,13 @@ struct GameSessionTests {
         #expect(stats.gamesPlayed == 0)
     }
 
-    @Test func winShowsOnceThenKeepGoing() throws {
+    @Test func reaching2048CountsAWin() throws {
         var rng = SeededGenerator(seed: 5)
         var stats = Statistics()
         var s = session([[1024, 1024, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
         _ = try #require(s.move(.left, stats: &stats, using: &rng))
-        #expect(s.showsWin)
+        #expect(s.state.hasWon)
         #expect(stats.gamesWon == 1)
-        s.continueAfterWin()
-        #expect(!s.showsWin)
     }
 
     @Test func undoingAWinDoesNotCountItTwice() throws {

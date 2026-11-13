@@ -73,6 +73,11 @@ public struct SettingsView: View {
                                        "Works offline. No accounts, no ads, no cloud — everything stays on this iPhone."))
                                 .textStyle(Tokens.Text.footnote)
                                 .foregroundStyle(Tokens.Content.tertiary)
+                            Text(Loc.t("По мотивам игры 2048 Габриэле Чирулли.",
+                                       "Inspired by 2048 by Gabriele Cirulli."))
+                                .textStyle(Tokens.Text.footnote)
+                                .foregroundStyle(Tokens.Content.tertiary)
+                                .accessibilityIdentifier("settings.credit")
                         }
                     }
                     .padding(Tokens.Space.s20)

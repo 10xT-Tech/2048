@@ -1,6 +1,6 @@
-# 2048
+# 10xMerge
 
-The classic sliding-tile puzzle for iPhone (iOS 26), in the monochrome Liquid Glass style of Gist It.
+10xMerge — the classic 2048-style sliding-tile puzzle for iPhone (iOS 26), in the monochrome Liquid Glass style of Gist It.
 Works entirely offline — no accounts, ads, analytics or cloud.
 
 - Swipe to slide tiles; equal tiles merge. Reach 2048 — then keep going if you like.
@@ -14,3 +14,5 @@ open Game2048.xcodeproj
 ```
 
 See `CLAUDE.md` for architecture and conventions.
+
+Inspired by [2048](https://github.com/gabrielecirulli/2048) by Gabriele Cirulli (MIT); no code from it is used.

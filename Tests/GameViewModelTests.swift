@@ -78,16 +78,16 @@ struct GameViewModelTests {
         #expect(model.statistics.undos == 1)
     }
 
-    @Test func winOverlayBlocksMovesUntilKeepGoing() {
+    @Test func reaching2048KeepsPlayingWithAGreenFrame() {
         let (model, _, feedback) = model([[1024, 1024, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
         model.move(.left)
-        #expect(model.endState == .won)
         #expect(feedback.events.contains(.won))
+        #expect(!model.isOver)
+        #expect(model.endHighlight == .won)
         let board = model.session.state.board
-        model.move(.right)
-        #expect(model.session.state.board == board)
-        model.keepGoing()
-        #expect(model.endState == nil)
+        model.move(.right)                      // no pause: the next move plays
+        #expect(model.session.state.board != board)
+        #expect(model.endHighlight == .won)
     }
 
     @Test func gameOverOverlay() {
@@ -96,10 +96,10 @@ struct GameViewModelTests {
         model.move(.right)
         // The spawned tile lands in the one free cell; whether it's stuck depends on the value.
         if model.session.isOver {
-            #expect(model.endState == .over)
+            #expect(model.isOver)
             #expect(feedback.events.last == .over)
         } else {
-            #expect(model.endState == nil)
+            #expect(!model.isOver)
         }
     }
 
@@ -147,5 +147,82 @@ struct GameViewModelTests {
         model.newGame()
         #expect(model.summary == nil)
         #expect(model.statistics.topGames.isEmpty)
+    }
+
+    private static let stuck = [[2, 4, 2, 4], [4, 8, 16, 8], [16, 32, 64, 32], [4, 128, 256, 512]]
+
+    private func ended(score: Int, bestAtStart: Int?, rows: [[Int]] = stuck) -> GameViewModel {
+        let store = MemoryStore(session: GameSession(state: GameState(board: Board(rows: rows), score: score, moves: 50),
+                                                     bestAtStart: bestAtStart))
+        return GameViewModel(store: store, feedback: nil, rng: SeededGenerator(seed: 1), animates: false)
+    }
+
+    @Test func endFramePlainWhenNoRecord() {
+        let model = ended(score: 3_000, bestAtStart: 10_000)
+        #expect(model.isOver)
+        #expect(model.endHighlight == .plain)
+    }
+
+    @Test func endFrameOrangeForANewRecord() {
+        let model = ended(score: 3_000, bestAtStart: 1_000)
+        #expect(model.endHighlight == .record)
+    }
+
+    @Test func firstEverGameIsNotARecord() {
+        let model = ended(score: 3_000, bestAtStart: 0)
+        #expect(model.endHighlight == .plain)
+    }
+
+    @Test func endFrameGreenFor2048() {
+        let model = ended(score: 20_000, bestAtStart: 50_000,
+                          rows: [[2048, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        #expect(!model.isOver)
+        #expect(model.endHighlight == .won)
+    }
+
+    private static let playing = [[2, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+
+    @Test func noFrameWhilePlayingBelowTheRecord() {
+        let model = ended(score: 500, bestAtStart: 1_000, rows: Self.playing)
+        #expect(model.endHighlight == nil)
+    }
+
+    @Test func orangeFrameAsSoonAsTheRecordIsPassed() {
+        let model = ended(score: 990, bestAtStart: 1_000, rows: [[512, 512, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        #expect(model.endHighlight == nil)
+        model.move(.left)                       // +1024 → past the record, still playing
+        #expect(!model.isOver)
+        #expect(model.endHighlight == .record)
+    }
+
+    @Test func greenFor2048BelowTheRecordOrangeAbove() {
+        let below = ended(score: 20_000, bestAtStart: 50_000,
+                          rows: [[2048, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        #expect(below.endHighlight == .won)
+        let above = ended(score: 60_000, bestAtStart: 50_000,
+                          rows: [[2048, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        #expect(above.endHighlight == .record)
+    }
+
+    @Test func aNewGameRemembersTheBestSoFar() {
+        let (model, _, _) = model([[2, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        model.move(.left)
+        model.newGame()
+        #expect(model.session.bestAtStart == 4)
+    }
+
+    @Test func milestoneTilesHaveTheirOwnSteps() {
+        #expect(GameTokens.step(for: 2048) == 10)
+        #expect(GameTokens.step(for: 4096) == 11)
+        #expect(GameTokens.step(for: 8192) == 12)
+        #expect(GameTokens.step(for: 16384) == 13)
+        #expect(GameTokens.step(for: 65536) == 13)
+    }
+
+    @Test func numeralsTakeTheHigherContrast() {
+        #expect(GameTokens.textHex(on: 0xFFFFFF) != 0xFFFFFF)   // ink on white
+        #expect(GameTokens.textHex(on: 0x060607) == 0xFFFFFF)   // white on black
+        #expect(GameTokens.textHex(on: 0xFF8000) != 0xFFFFFF)   // ink on papaya
+        #expect(GameTokens.textHex(on: 0xD70015) == 0xFFFFFF)   // white on deep red
     }
 }

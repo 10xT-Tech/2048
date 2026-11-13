@@ -17,8 +17,6 @@ import Domain
 
 @MainActor @Observable
 public final class GameViewModel {
-    /// The board waits for a choice — shown as a panel under the board (the board stays visible).
-    public enum EndState: Equatable { case won, over }
 
     /// The game just finished, for the summary sheet.
     public struct GameSummary: Identifiable, Equatable {
@@ -63,18 +61,19 @@ public final class GameViewModel {
     public init(store: GameStoring, feedback: GameFeedbackPlaying?,
                 rng: any RandomNumberGenerator = SystemRandomNumberGenerator(), animates: Bool = true) {
         var rng = AnyRandomGenerator(rng)
+        let statistics = store.loadStatistics()
         let session: GameSession
         if let saved = store.loadSession() {
             session = saved
         } else {
-            session = GameSession(state: GameEngine.newGame(using: &rng))
+            session = GameSession(state: GameEngine.newGame(using: &rng), bestAtStart: statistics.bestScore)
             store.saveSession(session)
         }
         self.store = store
         self.feedback = feedback
         self.rng = rng
         self.animates = animates
-        statistics = store.loadStatistics()
+        self.statistics = statistics
         self.session = session
         tiles = session.state.board.tiles
     }
@@ -85,13 +84,27 @@ public final class GameViewModel {
     public var bestScore: Int { max(statistics.bestScore, score) }
     public var boardSize: Int { session.state.board.size }
     public var canUndo: Bool { session.canUndo }
-    /// Shown only once the board has settled.
-    public var endState: EndState? {
-        guard !isAnimating else { return nil }
-        if session.showsWin { return .won }
-        if session.isOver { return .over }
-        return nil
+    /// No moves left (the board waits for Undo move / Finish) — shown once the board has settled.
+    public var isOver: Bool { !isAnimating && session.isOver }
+
+    /// The board's frame, live during play: orange as soon as the score passes the record (and on as it
+    /// grows), else green once 2048 is reached, else — only when the game is over — plain; none otherwise.
+    /// Reaching 2048 doesn't pause the game.
+    public enum EndHighlight: Equatable { case plain, won, record }
+
+    public var endHighlight: EndHighlight? {
+        if isNewRecord { return .record }
+        if session.state.hasWon { return .won }
+        return isOver ? .plain : nil
     }
+
+    /// This game beat the best score from before it started. The very first game doesn't count —
+    /// there was nothing to beat. (Sessions saved before 1.1 compare with the best finished game.)
+    public var isNewRecord: Bool {
+        let previous = session.bestAtStart ?? statistics.topGames.first?.score ?? 0
+        return previous > 0 && score > previous
+    }
+
     /// Starting over loses something worth a question: a game with moves that isn't finished.
     public var newGameNeedsConfirmation: Bool { session.state.moves > 0 && !session.isOver }
 
@@ -99,8 +112,6 @@ public final class GameViewModel {
 
     public func move(_ direction: Direction) {
         settleNow()
-        // While the win (or game-over) panel is up, the board waits for the player's choice.
-        guard endState == nil else { return }
         let wasWon = session.state.hasWon
         guard let outcome = session.move(direction, stats: &statistics, using: &rng) else { return }
         persist()
@@ -161,11 +172,6 @@ public final class GameViewModel {
 
     /// "Finish" from the end panel: the same as starting a new game.
     public func finishGame() { newGame() }
-
-    public func keepGoing() {
-        session.continueAfterWin()
-        persist()
-    }
 
     public func resetStatistics() {
         statistics = Statistics()

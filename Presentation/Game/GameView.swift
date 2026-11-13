@@ -3,10 +3,11 @@
 //  2048 — Presentation
 //
 //  The one game screen: the large title with Statistics + Settings in the toolbar (the same
-//  `.inlineLarge` header as Gist It's main screens), the score and best, the board, then Undo and
-//  New game. A swipe anywhere on the screen moves; arrow keys work too (hardware keyboard /
-//  Simulator). On a win or game over the board stays fully visible and the choices appear as a
-//  panel right under it (Keep going / Finish, Undo move / Finish); Finish opens the game summary.
+//  `.inlineLarge` header as Gist It's main screens), the score and best, Undo and New game, then the
+//  board right under them — fixed in place. A swipe anywhere on the screen moves; arrow keys work too (hardware keyboard /
+//  Simulator). The board's frame is live: orange once the score passes the record, else green once
+//  2048 is reached (no pause), else plain on game over. On game over the board stays put and a panel
+//  UNDER it offers Undo move / Finish; Finish opens the game summary.
 //
 
 import SwiftUI
@@ -34,25 +35,19 @@ public struct GameView: View {
                 ScreenBackground()
                 VStack(spacing: Tokens.Space.s20) {
                     scores
-                    Text(Loc.t("Соединяйте плитки — дойдите до 2048!", "Join the tiles, get to 2048!"))
-                        .textStyle(Tokens.Text.subhead)
-                        .foregroundStyle(Tokens.Content.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    controls
                     board
-                    if let end = model.endState {
-                        EndPanel(kind: end, canUndo: model.canUndo, onKeepGoing: model.keepGoing,
-                                 onUndo: model.undo, onFinish: model.finishGame)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    // The end message goes UNDER the board, into the free space — nothing above moves.
+                    if model.isOver {
+                        EndPanel(canUndo: model.canUndo, onUndo: model.undo, onFinish: model.finishGame)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                     Spacer(minLength: 0)
-                    if model.endState == nil {
-                        controls
-                    }
                 }
                 .padding(.horizontal, Tokens.Space.s20)
                 .padding(.top, Tokens.Space.s8)
                 .padding(.bottom, Tokens.Space.s16)
-                .animation(Tokens.Motion.standard, value: model.endState)
+                .animation(Tokens.Motion.standard, value: model.isOver)
             }
             .contentShape(Rectangle())
             .gesture(swipe)
@@ -69,7 +64,7 @@ public struct GameView: View {
                 return .handled
             }
             .onAppear { focused = true }
-            .navigationTitle("2048")
+            .navigationTitle("10xMerge")
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -112,7 +107,17 @@ public struct GameView: View {
 
     private var board: some View {
         BoardView(size: model.boardSize, tiles: model.tiles,
-                  entrance: { [mergedIDs = model.mergedIDs] in mergedIDs.contains($0.id) ? .pop : .appear })
+                  entrance: { [mergedIDs = model.mergedIDs] in mergedIDs.contains($0.id) ? .pop : .appear },
+                  frameColor: frameColor)
+    }
+
+    private var frameColor: Color? {
+        switch model.endHighlight {
+        case .plain: GameTokens.endFramePlain
+        case .won: GameTokens.endFrameWon
+        case .record: GameTokens.endFrameRecord
+        case nil: nil
+        }
     }
 
     private var controls: some View {
@@ -147,47 +152,36 @@ public struct GameView: View {
     }
 }
 
-/// Win / game over: a glass panel under the board — the board itself stays visible.
+/// Game over: a glass panel under the board — the board stays where it is.
 private struct EndPanel: View {
-    let kind: GameViewModel.EndState
     let canUndo: Bool
-    let onKeepGoing: () -> Void
     let onUndo: () -> Void
     let onFinish: () -> Void
 
     var body: some View {
         VStack(spacing: Tokens.Space.s12) {
             HStack(spacing: Tokens.Space.s8) {
-                Image(systemName: kind == .won ? "crown" : "square.grid.2x2")
+                Image(systemName: "square.grid.2x2")
                     .font(.system(size: 15, weight: .semibold))
                     .accessibilityHidden(true)
-                Text(kind == .won ? Loc.t("Вы собрали 2048!", "You made 2048!")
-                                  : Loc.t("Ходов больше нет", "No more moves"))
+                Text(Loc.t("Ходов больше нет", "No more moves"))
                     .textStyle(Tokens.Text.headline)
                     .accessibilityAddTraits(.isHeader)
             }
             .foregroundStyle(Tokens.Content.primary)
             HStack(spacing: Tokens.Space.s12) {
-                switch kind {
-                case .won:
-                    EHButton(Loc.t("Закончить", "Finish"), icon: "flag.checkered", kind: .glass, fillWidth: true,
-                             accessibilityID: "end.finish", action: onFinish)
-                    EHButton(Loc.t("Играть дальше", "Keep going"), kind: .primary, fillWidth: true,
-                             accessibilityID: "end.keepGoing", action: onKeepGoing)
-                case .over:
-                    if canUndo {
-                        EHButton(Loc.t("Отменить ход", "Undo move"), icon: "arrow.uturn.backward", kind: .glass,
-                                 fillWidth: true, accessibilityID: "end.undo", action: onUndo)
-                    }
-                    EHButton(Loc.t("Закончить", "Finish"), icon: "flag.checkered", kind: .primary, fillWidth: true,
-                             accessibilityID: "end.finish", action: onFinish)
+                if canUndo {
+                    EHButton(Loc.t("Отменить ход", "Undo move"), icon: "arrow.uturn.backward", kind: .glass,
+                             fillWidth: true, accessibilityID: "end.undo", action: onUndo)
                 }
+                EHButton(Loc.t("Закончить", "Finish"), icon: "flag.checkered", kind: .primary, fillWidth: true,
+                         accessibilityID: "end.finish", action: onFinish)
             }
         }
         .padding(Tokens.Space.s16)
         .frame(maxWidth: .infinity)
         .glassPanel(cornerRadius: Tokens.Radius.card)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(kind == .won ? "end.won" : "end.over")
+        .accessibilityIdentifier("end.over")
     }
 }

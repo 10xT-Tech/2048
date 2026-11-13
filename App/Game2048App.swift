@@ -27,20 +27,19 @@ struct Game2048App: App {
         // Screenshots / design review: every tile value on one board (nothing persisted).
         if arguments.contains("-demoBoard") {
             let demo = InMemoryGameStore()
-            var session = GameSession(state: GameState(board: Board(rows: [
-                [2, 4, 8, 16], [256, 128, 64, 32], [512, 1024, 2048, 4096], [0, 0, 2, 2],
-            ]), score: 20_480, moves: 900))
-            if !arguments.contains("-demoWin") { session.continueAfterWin() }
+            let session = GameSession(state: GameState(board: Board(rows: [
+                [2, 4, 8, 16], [256, 128, 64, 32], [512, 1024, 2048, 4096], [8192, 16384, 2, 2],
+            ]), score: 20_480, moves: 900), bestAtStart: 50_000)
             demo.saveSession(session)
             store = demo
         }
-        // A board with no moves left — the end panel and the summary.
+        // A board with no moves left — the end panel and the summary (`-demoRecord`: as a new record).
         if arguments.contains("-demoOver") {
             let demo = InMemoryGameStore()
             demo.saveSession(GameSession(state: GameState(board: Board(rows: [
                 [2, 4, 2, 4], [4, 8, 16, 8], [16, 32, 64, 32], [4, 128, 256, 512],
             ]),
-                score: 3_480, moves: 260)))
+                score: 3_480, moves: 260), bestAtStart: arguments.contains("-demoRecord") ? 1_000 : 10_000))
             store = demo
         }
         #endif
