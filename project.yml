@@ -1,0 +1,134 @@
+# 2048 — xcodegen project definition (source of truth for the Xcode project).
+# Regenerate the .xcodeproj with:  xcodegen generate
+# The generated Game2048.xcodeproj is gitignored; project.yml is committed instead.
+#
+# Same layering as Gist It (englishhelper), lighter: separate framework modules, so the compiler
+# enforces the dependency rule (Domain cannot import an outer layer):
+#   Domain  ◄── Presentation ──► DesignSystem
+#   (App depends on everything; nothing depends on App)
+# Fully offline: no SPM packages, no network code, no entitlements.
+
+name: Game2048
+
+options:
+  bundleIdPrefix: tech.10xt
+  deploymentTarget:
+    iOS: "26.0"
+  developmentLanguage: en
+  generateEmptyDirectories: true
+  postGenCommand: sed -i '' -E 's/LastUpgradeCheck = [0-9]+;/LastUpgradeCheck = 2700;/' Game2048.xcodeproj/project.pbxproj
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    MARKETING_VERSION: "1.0.0"        # user-visible version — bump for a new release
+    CURRENT_PROJECT_VERSION: "1"      # build number — MUST be unique per App Store upload
+    GENERATE_INFOPLIST_FILE: "YES"
+    DEVELOPMENT_TEAM: TQJ35ER433
+    CODE_SIGN_STYLE: Automatic
+    # iPhone-ONLY (TARGETED_DEVICE_FAMILY is pinned per target — xcodegen's per-target "1,2" default
+    # would override a project-level value).
+    SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ENABLE_MODULE_VERIFIER: YES
+    MODULE_VERIFIER_SUPPORTED_LANGUAGES: "objective-c objective-c++"
+    MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS: "gnu11 gnu++14"
+
+targets:
+
+  Domain:
+    type: framework
+    platform: iOS
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
+    sources: [Domain]
+
+  # Shared with Gist It — files are verbatim copies (except Loc.swift, trimmed to RU/EN).
+  DesignSystem:
+    type: framework
+    platform: iOS
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
+    sources: [DesignSystem]
+
+  Presentation:
+    type: framework
+    platform: iOS
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
+    sources: [Presentation]
+    dependencies:
+      - target: Domain
+      - target: DesignSystem
+
+  Game2048:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - target: Domain
+      - target: DesignSystem
+      - target: Presentation
+    settings:
+      base:
+        PRODUCT_NAME: "2048"
+        PRODUCT_MODULE_NAME: Game2048
+        PRODUCT_BUNDLE_IDENTIFIER: tech.10xt.game2048
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: YES
+
+  Game2048Tests:
+    type: bundle.unit-test
+    platform: iOS
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
+    sources: [Tests]
+    dependencies:
+      - target: Domain
+      - target: Presentation
+
+  Game2048UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
+    sources: [UITests]
+    dependencies:
+      - target: Game2048
+
+schemes:
+  Game2048:
+    build:
+      targets:
+        Game2048: all
+        Game2048Tests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - Game2048Tests
+
+  Game2048UITests:
+    build:
+      targets:
+        Game2048: all
+        Game2048UITests: [test]
+    test:
+      config: Debug
+      targets:
+        - Game2048UITests
